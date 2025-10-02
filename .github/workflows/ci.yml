@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: golang:1.22-bookworm
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - name: Go version
@@ -37,6 +38,7 @@ jobs:
     needs: [deps]
     container:
       image: golang:1.22-bookworm
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - name: go fmt check
@@ -54,6 +56,7 @@ jobs:
     needs: [deps]
     container:
       image: tinygo/tinygo:0.34.0
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - name: TinyGo version
@@ -146,6 +149,7 @@ jobs:
     needs: [build-wasm]
     container:
       image: alpine:3.20
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - name: Download plugin.wasm
@@ -178,6 +182,7 @@ jobs:
     needs: [package-local-bundle]
     container:
       image: alpine:3.20
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - name: Download bundle
