@@ -75,25 +75,24 @@ func (m *TokenMiddleware) unauth(resp api.Response, msg string) (bool, uint32) {
 
 // parseQuery extracts all values for key from "a=1&b=2&b=3"
 func parseQuery(qs, key string) []string {
-    var out []string
-    if qs == "" {
-        return out
-    }
-    k := key + "="
-    parts := strings.Split(qs, "&")
-    for _, part := range parts {
-        if part == "" {
-            continue
-        }
-        if strings.HasPrefix(part, k) {
-            out = append(out, urlDecode(part[len(k):]))
-        } else if part == key { // key without "=", treat as empty value
-            out = append(out, "")
-        }
-    }
-    return out
+	var out []string
+	if qs == "" {
+		return out
+	}
+	k := key + "="
+	parts := strings.Split(qs, "&")
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if strings.HasPrefix(part, k) {
+			out = append(out, urlDecode(part[len(k):]))
+		} else if part == key { // key without "=", treat as empty value
+			out = append(out, "")
+		}
+	}
+	return out
 }
-
 
 func urlDecode(s string) string {
 	if strings.IndexByte(s, '%') == -1 && strings.IndexByte(s, '+') == -1 {

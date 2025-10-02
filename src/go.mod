@@ -1,4 +1,4 @@
-module gitlab.com/keycard/traefik-wasm-token-check
+module github.com/checkin247/traefik-wasm-query-param-check
 
 go 1.21
 

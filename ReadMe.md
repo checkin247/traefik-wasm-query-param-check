@@ -4,6 +4,8 @@
 
 Validates a query parameter against an allow-list.
 
+Proceed if query parameter is set and its value is in the list of allowed values.
+
 ## Config (dynamic)
 ```yaml
 http:
@@ -34,15 +36,30 @@ docker run --rm -v "$PWD":/work -w /work/src tinygo/tinygo:0.34.0 tinygo build -
 ### move to build dir
 
 ```bash
-MODULE_PATH=github.com/checkin247/traefik-wasm-token-check
+MODULE_PATH=github.com/checkin247/traefik-wasm-query-param-check
 mkdir -p build/plugins-local/src/$MODULE_PATH
 cp plugin.wasm .traefik.yml build/plugins-local/src/$MODULE_PATH/
 ```
 
+## Test locally
+
+```bash
+docker-compose up -d
+```
+then
+```bash
+curl -i 'http://localhost:80/Token=my-secret'
+curl -i 'http://localhost:80/Token=not-mysecret'
+```
+
+## License
+tbd
+
+## Remarks
+Mostly auto generated
 
 
 ## Mis
 
-
-[![CI (WASM plugin)](https://github.com/checkin247/traefik-wasm-token-check/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/traefik-wasm-token-check/actions/workflows/ci.yml)
+[![CI (WASM plugin)](https://github.com/checkin247/traefik-wasm-query-param-check/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/traefik-wasm-query-param-check/actions/workflows/ci.yml)
 
