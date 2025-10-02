@@ -1,0 +1,62 @@
+﻿
+# ── Go / TinyGo ────────────────────────────────────────────────────────────────
+plugin.wasm
+*.test
+*.out
+*.coverprofile
+coverage.out
+coverage/
+bin/
+build/
+dist/
+tmp/
+out/
+*.prof
+*.pprof
+
+# Go workspaces (optional)
+go.work
+go.work.sum
+
+# Vendoring (uncomment if you don't commit vendored deps)
+# vendor/
+
+# ── Traefik local plugin dev ───────────────────────────────────────────────────
+plugins-local/
+plugin-local-bundle.tgz
+
+# ── Editors / IDEs ─────────────────────────────────────────────────────────────
+# VS Code
+.vscode/
+.vscode-test/
+
+# JetBrains (GoLand, IntelliJ, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ── OS cruft ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+Icon?
+
+# ── Swap / backups ─────────────────────────────────────────────────────────────
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# ── Env files (if you keep secrets local-only) ─────────────────────────────────
+.env
+.env.*

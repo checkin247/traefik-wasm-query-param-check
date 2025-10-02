@@ -1,0 +1,23 @@
+http:
+  routers:
+    who:
+      rule: "PathPrefix(`/`)"
+      entryPoints: ["web"]
+      service: who
+      middlewares: ["token-check"]
+
+  middlewares:
+    token-check:
+      plugin:
+        qptoken:
+          paramName: "Token"
+          allowedValues:
+            - "my-secret"
+            - "another-secret"
+          denyStatus: 401
+
+  services:
+    who:
+      loadBalancer:
+        servers:
+          - url: "http://whoami:80"

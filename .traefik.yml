@@ -1,0 +1,8 @@
+displayName: Query Param Token Check
+runtime: wasm
+type: middleware
+summary: "Enforces presence of a query parameter and validates its value against an allow-list."
+testData:
+  paramName: Token
+  allowedValues: ["my-secret", "another-secret"]
+  denyStatus: 401

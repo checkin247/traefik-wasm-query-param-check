@@ -1,0 +1,15 @@
+log:
+  level: DEBUG
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  file:
+    filename: "/etc/traefik/dynamic.yml"
+
+experimental:
+  localPlugins:
+    qptoken:
+      moduleName: github.com/checkin247/traefik-wasm-token-check

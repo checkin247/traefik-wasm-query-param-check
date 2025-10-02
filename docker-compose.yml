@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  traefik:
+    image: traefik:v3.3
+    command:
+      - "--api.insecure=true"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entryPoints.web.address=:80"
+      - "--experimental.localPlugins.qptoken.moduleName=github.com/checkin247/traefik-wasm-token-check"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./build/plugins-local:/plugins-local
+  whoami:
+    image: traefik/whoami:v1.10
