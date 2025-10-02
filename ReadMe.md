@@ -1,3 +1,7 @@
+
+[![CI (WASM plugin)](https://github.com/checkin247/traefik-wasm-query-param-check/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/traefik-wasm-query-param-check/actions/workflows/ci.yml)
+
+
 # Query Parameter validation for traefik
 > uses wasm
 
@@ -57,9 +61,3 @@ tbd
 
 ## Remarks
 Mostly auto generated
-
-
-## Mis
-
-[![CI (WASM plugin)](https://github.com/checkin247/traefik-wasm-query-param-check/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/traefik-wasm-query-param-check/actions/workflows/ci.yml)
-
