@@ -1,0 +1,39 @@
+project_name: traefik-wasm-query-param-check
+
+builds:
+  - binary: plugin.wasm
+    gobinary: tinygo
+    no_unique_dist_dir: true
+    no_main_check: true
+    # source package that contains your TinyGo main (this repo keeps sources under src)
+    main: ./src
+    # flags passed to the gobinary (TinyGo)
+    flags:
+      - -scheduler=none
+      - --no-debug
+      - -target=wasi
+    ldflags: []
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+archives:
+  - id: plugin
+    name_template: '{{ .ProjectName }}_v{{ .Version }}'
+    format: zip
+    files:
+      - LICENSE
+      - .traefik.yml
+      - plugin.wasm
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs: '
+      - '^doc: '
+      - '^chore:'
+      - '^chore(deps):'
+      - '^test:'
+      - '^tests:'

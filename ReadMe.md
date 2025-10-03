@@ -52,12 +52,13 @@ docker-compose up -d
 ```
 then
 ```bash
-curl -i 'http://localhost:80/Token=my-secret'
-curl -i 'http://localhost:80/Token=not-mysecret'
+curl -i 'http://localhost:80/?Token=my-secret'
+curl -i 'http://localhost:80/?Token=not-mysecret'
 ```
 
 ## License
-tbd
+
+Free to use under GPL-3.0, see LICENSE
 
 ## Remarks
 Mostly auto generated
