@@ -1,4 +1,5 @@
 project_name: traefik-wasm-query-param-check
+version: 2
 
 builds:
   - binary: plugin.wasm
