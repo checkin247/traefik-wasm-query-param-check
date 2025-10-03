@@ -12,6 +12,6 @@ services:
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - ./build/plugins-local:/plugins-local
+      - ./plugins-local:/plugins-local
   whoami:
     image: traefik/whoami:v1.10

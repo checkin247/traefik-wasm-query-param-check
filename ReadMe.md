@@ -41,8 +41,8 @@ docker run --rm -v "$PWD":/work -w /work/src tinygo/tinygo:0.34.0 tinygo build -
 
 ```bash
 MODULE_PATH=github.com/checkin247/traefik-wasm-query-param-check
-mkdir -p build/plugins-local/src/$MODULE_PATH
-cp plugin.wasm .traefik.yml build/plugins-local/src/$MODULE_PATH/
+mkdir -p plugins-local/src/$MODULE_PATH
+cp plugin.wasm .traefik.yml plugins-local/src/$MODULE_PATH/
 ```
 
 ## Test locally
