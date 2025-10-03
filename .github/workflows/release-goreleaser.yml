@@ -28,15 +28,13 @@ jobs:
           sudo ln -sf /usr/local/tinygo/bin/tinygo /usr/local/bin/tinygo
           tinygo version
 
-      - name: Install goreleaser
-        uses: goreleaser/goreleaser-action@v4
-        with:
-          version: latest
-          args: --version
+      - name: Clean dist (if any)
+        run: |
+          rm -rf dist || true
 
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v4
         with:
-          args: release --rm-dist
+          args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
