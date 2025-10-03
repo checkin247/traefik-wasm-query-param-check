@@ -99,26 +99,10 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
           echo "Waiting for Traefik..."
           for i in {1..30}; do
-            curl -fsS "${HTTP_BASE}/" >/dev/null 2>&1 && break
+            curl -sS "${HTTP_BASE}/" >/dev/null 2>&1 && break
             sleep 1
             if [ $i -eq 30 ]; then echo "Traefik not ready"; docker compose logs --no-color; exit 1; fi
           done
-
-      - name: Debug show mounted plugin files inside Traefik container
-        run: |
-          echo '--- docker-compose ps ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml ps || true
-          echo '--- listing plugin dir inside container ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml exec traefik ls -la /plugins-local/src/github.com/checkin247/traefik-wasm-query-param-check || true
-          echo '--- cat .traefik.yml ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml exec traefik sh -c 'cat /plugins-local/src/github.com/checkin247/traefik-wasm-query-param-check/.traefik.yml || true'
-          echo '--- wasm magic bytes (hex) ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml exec traefik sh -c "head -c4 /plugins-local/src/github.com/checkin247/traefik-wasm-query-param-check/plugin.wasm | xxd -p || true"
-          echo '--- wasm file stat ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml exec traefik sh -c 'stat -c "%a %U %G %s %n" /plugins-local/src/github.com/checkin247/traefik-wasm-query-param-check/plugin.wasm || true'
-          echo '--- last 200 lines of traefik logs ---'
-          docker compose -f docker-compose.yml -f docker-compose.test.yml logs --no-color traefik | sed -n '1,200p' || true
-
       - name: Run checks (401/200)
         run: |
           set -e
