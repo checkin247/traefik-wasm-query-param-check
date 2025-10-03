@@ -151,11 +151,23 @@ jobs:
           cp plugin.wasm .traefik.yml "$PKG_DIR/"
           tar -C dist -czf plugin-local-bundle.tgz plugins-local
           ls -lh plugin-local-bundle.tgz
+      - name: Create release zip (plugin.wasm + .traefik.yml at root)
+        run: |
+          # alpine may not have zip installed by default
+          apk add --no-cache zip >/dev/null 2>&1 || true
+          # create a zip that contains plugin.wasm and .traefik.yml at the archive root
+          zip -j plugin-release.zip plugin.wasm .traefik.yml
+          ls -lh plugin-release.zip
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
           name: plugin-local-bundle.tgz
           path: plugin-local-bundle.tgz
+      - name: Upload release zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-release.zip
+          path: plugin-release.zip
 
   release:
     name: Release (tagged)
@@ -167,18 +179,18 @@ jobs:
       options: --user 1001
     steps:
       - uses: actions/checkout@v4
-      - name: Download bundle
+      - name: Download release zip
         uses: actions/download-artifact@v4
         with:
-          name: plugin-local-bundle.tgz
+          name: plugin-release.zip
           path: .
-      - name: Checksums
-        run: sha256sum plugin-local-bundle.tgz > plugin-local-bundle.tgz.sha256
-      - name: Create GitHub Release
+      - name: Checksums (zip)
+        run: sha256sum plugin-release.zip > plugin-release.zip.sha256
+      - name: Create GitHub Release (zip)
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            plugin-local-bundle.tgz
-            plugin-local-bundle.tgz.sha256
+            plugin-release.zip
+            plugin-release.zip.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
