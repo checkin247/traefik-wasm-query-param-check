@@ -89,7 +89,7 @@ jobs:
         id: mod
         run: |
             MOD=$(sed -n 's/^module[[:space:]]\+//p' src/go.mod)
-            PKG_DIR="plugins-local/src/$MOD"
+            PKG_DIR="build/plugins-local/src/$MOD"
             mkdir -p "$PKG_DIR"
             cp plugin.wasm .traefik.yml "$PKG_DIR/"
            
