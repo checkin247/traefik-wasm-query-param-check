@@ -16,10 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install TinyGo
-        uses: tinygo-org/setup-tinygo@v0.5.0
-        with:
-          version: '0.34.0'
+      - name: Install TinyGo (manual)
+        run: |
+          set -eux
+          TGV=0.34.0
+          ARCH=amd64
+          URL="https://github.com/tinygo-org/tinygo/releases/download/v${TGV}/tinygo_${TGV}_linux_${ARCH}.tar.gz"
+          echo "Downloading TinyGo from $URL"
+          curl -fsSL "$URL" -o /tmp/tinygo.tar.gz
+          sudo tar -C /usr/local -xzf /tmp/tinygo.tar.gz
+          sudo ln -sf /usr/local/tinygo/bin/tinygo /usr/local/bin/tinygo
+          tinygo version
 
       - name: Install goreleaser
         uses: goreleaser/goreleaser-action@v4
