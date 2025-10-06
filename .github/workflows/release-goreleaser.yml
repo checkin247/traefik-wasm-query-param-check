@@ -28,6 +28,13 @@ jobs:
           sudo ln -sf /usr/local/tinygo/bin/tinygo /usr/local/bin/tinygo
           tinygo version
 
+      - name: Build plugin.wasm
+        # build the wasm artifact from src; output plugin.wasm at repo root
+        working-directory: src
+        run: |
+          set -eux
+          tinygo build -o ../plugin.wasm -scheduler=none --no-debug -target=wasi .
+
       - name: Clean dist (if any)
         run: |
           rm -rf dist || true
