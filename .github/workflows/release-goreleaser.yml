@@ -141,7 +141,3 @@ jobs:
           asset_content_type: text/plain
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Debug step removed: dist inspection no longer needed
-
-      # Let GoReleaser create and attach the plugin archive (plugin.wasm, .traefik.yml, LICENSE)
