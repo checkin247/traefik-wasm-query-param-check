@@ -16,6 +16,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('src/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-mod-
+
+      - name: Prefetch Go modules
+        working-directory: src
+        run: |
+          set -eux
+          go version
+          go mod download
+
       - name: Install TinyGo (manual)
         run: |
           set -eux
@@ -35,9 +52,31 @@ jobs:
           set -eux
           tinygo build -o ../plugin.wasm -scheduler=none --no-debug -target=wasi .
 
+      - name: List plugin.wasm
+        run: |
+          set -eux
+          echo 'Verifying plugin.wasm was produced'
+          ls -la plugin.wasm || true
+          if [ -f plugin.wasm ]; then
+            echo 'plugin.wasm exists'
+          else
+            echo 'plugin.wasm NOT found'
+            exit 1
+          fi
+
       - name: Clean dist (if any)
         run: |
           rm -rf dist || true
+
+      - name: Check plugin artifact
+        run: |
+          set -eux
+          echo "Checking for plugin artifacts"
+          ls -la LICENSE .traefik.yml plugin.wasm
+          if [ ! -f plugin.wasm ]; then
+            echo "plugin.wasm missing — build failed or file path wrong"
+            exit 1
+          fi
 
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v4
@@ -45,3 +84,51 @@ jobs:
           args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create plugin zip and checksum
+        run: |
+          set -eux
+          TAG=${GITHUB_REF#refs/tags/}
+          PROJECT_NAME=${GITHUB_REPOSITORY#*/}
+          VERSION=${TAG#v}
+          ZIP_NAME="${PROJECT_NAME}_v${VERSION}.zip"
+          CHECKSUM_NAME="${PROJECT_NAME}_${VERSION}_checksums.txt"
+          # Create zip containing only the plugin artifacts
+          zip -j "$ZIP_NAME" LICENSE .traefik.yml plugin.wasm
+          # Create sha256 checksum file in the same layout GoReleaser uses
+          sha256sum "$ZIP_NAME" > "$CHECKSUM_NAME"
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "CHECKSUM_NAME=$CHECKSUM_NAME" >> $GITHUB_ENV
+
+      - name: Upload plugin assets to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          TAG=${GITHUB_REF#refs/tags/}
+          # Get release JSON created by GoReleaser (should exist)
+          RELEASE_JSON=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r .id)
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "Release not found for tag ${TAG}; aborting upload"
+            echo "Response: $RELEASE_JSON"
+            exit 1
+          fi
+          UPLOAD_URL=$(echo "$RELEASE_JSON" | jq -r .upload_url | sed -e 's/{?name,label}//')
+          # Upload zip
+          ZIP_NAME=${ZIP_NAME}
+          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: application/zip" --data-binary @"${ZIP_NAME}" "${UPLOAD_URL}?name=${ZIP_NAME}"
+          # Upload checksum
+          CHECKSUM_NAME=${CHECKSUM_NAME}
+          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: text/plain" --data-binary @"${CHECKSUM_NAME}" "${UPLOAD_URL}?name=${CHECKSUM_NAME}"
+
+      - name: Debug dist contents (for troubleshooting)
+        if: always()
+        run: |
+          set -eux
+          echo 'Listing dist directory'
+          ls -la dist || true
+          echo 'Showing dist/config.yaml'
+          cat dist/config.yaml || true
+
+      # Let GoReleaser create and attach the plugin archive (plugin.wasm, .traefik.yml, LICENSE)

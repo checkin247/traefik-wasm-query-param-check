@@ -2,8 +2,8 @@
 
 on:
   push:
-    branches: [ main, master ]
-    tags:    [ 'v*' ]
+    branches: [ main ]
+    # tags:    [ 'v*' ]
   pull_request:
 
 permissions:

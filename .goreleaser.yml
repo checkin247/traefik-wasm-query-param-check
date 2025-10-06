@@ -12,9 +12,12 @@ archives:
     name_template: '{{ .ProjectName }}_v{{ .Version }}'
     formats: [zip]
     files:
-      - LICENSE
-      - .traefik.yml
-      - plugin.wasm
+      - src: LICENSE
+        dst: LICENSE
+      - src: .traefik.yml
+        dst: .traefik.yml
+      - src: plugin.wasm
+        dst: plugin.wasm
 
 changelog:
   sort: asc
