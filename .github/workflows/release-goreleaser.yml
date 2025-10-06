@@ -122,13 +122,6 @@ jobs:
           CHECKSUM_NAME=${CHECKSUM_NAME}
           curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: text/plain" --data-binary @"${CHECKSUM_NAME}" "${UPLOAD_URL}?name=${CHECKSUM_NAME}"
 
-      - name: Debug dist contents (for troubleshooting)
-        if: always()
-        run: |
-          set -eux
-          echo 'Listing dist directory'
-          ls -la dist || true
-          echo 'Showing dist/config.yaml'
-          cat dist/config.yaml || true
+      # Debug step removed: dist inspection no longer needed
 
       # Let GoReleaser create and attach the plugin archive (plugin.wasm, .traefik.yml, LICENSE)
