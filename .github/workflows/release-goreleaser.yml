@@ -86,6 +86,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create plugin zip and checksum
+        id: create_zip
         run: |
           set -eux
           TAG=${GITHUB_REF#refs/tags/}
@@ -99,28 +100,47 @@ jobs:
           sha256sum "$ZIP_NAME" > "$CHECKSUM_NAME"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
           echo "CHECKSUM_NAME=$CHECKSUM_NAME" >> $GITHUB_ENV
+          # Export values as step outputs for use by later actions
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
+          echo "checksum_name=$CHECKSUM_NAME" >> $GITHUB_OUTPUT
 
-      - name: Upload plugin assets to GitHub Release
+      - name: Get release upload URL
+        id: get_upload_url
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eux
           TAG=${GITHUB_REF#refs/tags/}
-          # Get release JSON created by GoReleaser (should exist)
+          # Query the release created by goreleaser and export its upload_url (stripped)
           RELEASE_JSON=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
           RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r .id)
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
-            echo "Release not found for tag ${TAG}; aborting upload"
+            echo "Release not found for tag ${TAG}; aborting"
             echo "Response: $RELEASE_JSON"
             exit 1
           fi
           UPLOAD_URL=$(echo "$RELEASE_JSON" | jq -r .upload_url | sed -e 's/{?name,label}//')
-          # Upload zip
-          ZIP_NAME=${ZIP_NAME}
-          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: application/zip" --data-binary @"${ZIP_NAME}" "${UPLOAD_URL}?name=${ZIP_NAME}"
-          # Upload checksum
-          CHECKSUM_NAME=${CHECKSUM_NAME}
-          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: text/plain" --data-binary @"${CHECKSUM_NAME}" "${UPLOAD_URL}?name=${CHECKSUM_NAME}"
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Upload plugin zip to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.get_upload_url.outputs.upload_url }}
+          asset_path: ${{ steps.create_zip.outputs.zip_name }}
+          asset_name: ${{ steps.create_zip.outputs.zip_name }}
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload checksum to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.get_upload_url.outputs.upload_url }}
+          asset_path: ${{ steps.create_zip.outputs.checksum_name }}
+          asset_name: ${{ steps.create_zip.outputs.checksum_name }}
+          asset_content_type: text/plain
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Debug step removed: dist inspection no longer needed
 
