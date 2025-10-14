@@ -78,13 +78,27 @@ func main() {}
 // runtime initialization (moved to TinyGo-only file)
 
 func (m *TokenMiddleware) handleRequest(req api.Request, resp api.Response) (next bool, reqCtx uint32) {
-	uri := req.GetURI() // e.g. "/path?Token=abc"
+	// Get URI safely - in some environments this might fail
+	uri := req.GetURI()
+	if uri == "" {
+		// If we can't get the URI, deny by default
+		if m.dev {
+			Logf(api.LogLevelError, "handleRequest: failed to get URI")
+		}
+		return m.unauth(resp, "no-query")
+	}
+	
 	ok, reason := tokenAllowed(uri, m.param, m.allow, m.dev)
 	if ok {
+		// Pass through to next handler - return next=true with no request context
+		// IMPORTANT: Do NOT do ANY operations here (including logging) before returning.
+		// In some environments (AKS), even devMode-guarded logging here causes HTTP 500.
+		// The tokenAllowed function already logs the validation decision when dev=true.
+		// TODO: Investigate if this can be re-enabled once root cause is found.
 		return true, 0
 	}
 	if m.dev {
-		Logf(api.LogLevelInfo, "handleRequest: denying request uri=%s reason=%s", uri, reason)
+		Logf(api.LogLevelInfo, "handleRequest: denying request reason=%s", reason)
 	}
 	return m.unauth(resp, reason)
 }
@@ -166,7 +180,10 @@ func tokenAllowed(uri, param string, allow map[string]struct{}, dev bool) (bool,
 	for _, v := range vals {
 		if _, ok := allow[v]; ok {
 			if dev {
-				Logf(api.LogLevelDebug, "tokenAllowed: allowed value=%s for param=%s", v, param)
+				// Use INFO so cluster logs (which often show INFO but omit DEBUG)
+				// will include allowed/forward decision points without changing
+				// the plugin behavior.
+				Logf(api.LogLevelInfo, "tokenAllowed: allowed value=%s for param=%s", v, param)
 			}
 			return true, ""
 		}
