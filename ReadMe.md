@@ -56,6 +56,32 @@ curl -i 'http://localhost:80/?Token=my-secret'
 curl -i 'http://localhost:80/?Token=not-mysecret'
 ```
 
+## Tests
+
+Unit tests live next to the code in `src/` and are run by default in CI.
+
+Run unit tests locally:
+
+```powershell
+Push-Location src
+go test ./...
+Pop-Location
+```
+
+Integration tests (end-to-end) are build-tagged and run separately so they don't
+execute during normal unit test runs or CI. To run the local integration tests:
+
+```powershell
+# Run integration-tagged tests in src (requires a running Traefik instance)
+Push-Location src
+go test -tags=integration -run TestLocalIntegration -v ./...
+Pop-Location
+```
+
+Use the `LOCAL_TEST_BASE` environment variable to point the integration test at a
+different base URL (default: `http://localhost:80/`).
+
+
 ## License
 
 Free to use under GPL-3.0, see LICENSE

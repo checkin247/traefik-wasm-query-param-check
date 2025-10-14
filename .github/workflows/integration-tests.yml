@@ -1,0 +1,43 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      base-url:
+        description: 'Base URL for integration tests (e.g. http://localhost:80/)'
+        required: false
+        default: 'http://localhost:80/'
+      run-docker-compose:
+        description: 'If true, runs docker-compose up before tests and down after'
+        required: false
+        default: 'false'
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Optionally start docker-compose
+        if: ${{ github.event.inputs.run-docker-compose == 'true' }}
+        run: |
+          docker-compose up -d
+
+      - name: Run integration tests
+        working-directory: src
+        env:
+          LOCAL_TEST_BASE: ${{ github.event.inputs.base-url }}
+        run: |
+          # Run only the local integration test(s) built with the 'integration' tag.
+          go test -tags=integration -run TestLocalIntegration -v ./...
+
+      - name: Tear down docker-compose
+        if: ${{ github.event.inputs.run-docker-compose == 'true' }}
+        run: |
+          docker-compose down || true

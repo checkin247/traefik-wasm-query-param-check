@@ -3,17 +3,40 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"strconv"
 	"strings"
 
-	"github.com/http-wasm/http-wasm-guest-tinygo/handler"
 	"github.com/http-wasm/http-wasm-guest-tinygo/handler/api"
 )
 
 type Config struct {
 	ParamName     string   `json:"paramName"`
 	AllowedValues []string `json:"allowedValues"`
-	DenyStatus    int      `json:"denyStatus,omitempty,string"` // default 401
+	// DenyStatus accepts either a number or a quoted string ("401") in JSON.
+	DenyStatus    HTTPStatus `json:"denyStatus,omitempty"` // default 401
+}
+
+// HTTPStatus accepts either a JSON number (401) or JSON string ("401").
+type HTTPStatus int
+
+func (s *HTTPStatus) UnmarshalJSON(b []byte) error {
+	// try number first
+	var n int
+	if err := json.Unmarshal(b, &n); err == nil {
+		*s = HTTPStatus(n)
+		return nil
+	}
+	// try string
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return err
+	}
+	*s = HTTPStatus(n)
+	return nil
 }
 
 type TokenMiddleware struct {
@@ -25,27 +48,7 @@ type TokenMiddleware struct {
 // TinyGo/WASI requires a main entrypoint even if unused by http-wasm.
 func main() {}
 
-func init() {
-	var cfg Config
-	if err := json.Unmarshal(handler.Host.GetConfig(), &cfg); err != nil {
-		handler.Host.Log(api.LogLevelError, fmt.Sprintf("config unmarshal: %v", err))
-		os.Exit(1)
-	}
-	if cfg.ParamName == "" || len(cfg.AllowedValues) == 0 {
-		handler.Host.Log(api.LogLevelError, "invalid config: paramName and allowedValues are required")
-		os.Exit(1)
-	}
-	deny := cfg.DenyStatus
-	if deny == 0 {
-		deny = 401
-	}
-	set := make(map[string]struct{}, len(cfg.AllowedValues))
-	for _, v := range cfg.AllowedValues {
-		set[v] = struct{}{}
-	}
-	mw := &TokenMiddleware{param: cfg.ParamName, allow: set, deny: deny}
-	handler.HandleRequestFn = mw.handleRequest
-}
+// runtime initialization (moved to TinyGo-only file)
 
 func (m *TokenMiddleware) handleRequest(req api.Request, resp api.Response) (next bool, reqCtx uint32) {
 	uri := req.GetURI() // e.g. "/path?Token=abc"
@@ -75,7 +78,7 @@ func (m *TokenMiddleware) unauth(resp api.Response, msg string) (bool, uint32) {
 
 // parseQuery extracts all values for key from "a=1&b=2&b=3"
 func parseQuery(qs, key string) []string {
-	var out []string
+	out := make([]string, 0)
 	if qs == "" {
 		return out
 	}
@@ -92,6 +95,27 @@ func parseQuery(qs, key string) []string {
 		}
 	}
 	return out
+}
+
+// tokenAllowed determines whether the request URI contains an allowed token
+// for the given param name. It is extracted to a helper so the decision logic
+// can be unit tested without needing the http-wasm host types.
+func tokenAllowed(uri, param string, allow map[string]struct{}) bool {
+	i := strings.IndexByte(uri, '?')
+	if i < 0 {
+		return false
+	}
+	qs := uri[i+1:]
+	vals := parseQuery(qs, param)
+	if len(vals) == 0 {
+		return false
+	}
+	for _, v := range vals {
+		if _, ok := allow[v]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func urlDecode(s string) string {

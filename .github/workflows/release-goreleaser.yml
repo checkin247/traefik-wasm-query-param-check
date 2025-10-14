@@ -96,6 +96,12 @@ jobs:
           CHECKSUM_NAME="${PROJECT_NAME}_${VERSION}_checksums.txt"
           # Create zip containing only the plugin artifacts
           zip -j "$ZIP_NAME" LICENSE .traefik.yml plugin.wasm
+          # Sanity check: ensure no test files or test directories are included in the release zip
+          if unzip -l "$ZIP_NAME" | grep -E "(^|/)(tests?/|.*_test\.go$)" >/dev/null; then
+            echo "ERROR: zip contains test files or test directories; aborting"
+            unzip -l "$ZIP_NAME"
+            exit 1
+          fi
           # Create sha256 checksum file in the same layout GoReleaser uses
           sha256sum "$ZIP_NAME" > "$CHECKSUM_NAME"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV

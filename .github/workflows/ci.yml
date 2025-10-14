@@ -70,6 +70,13 @@ jobs:
           name: plugin.wasm
           path: plugin.wasm
 
+      - name: Sanity check workspace for test files
+        run: |
+          # Ensure no test files or test directories are accidentally included with artifacts
+          if git ls-files --others --exclude-standard --ignored | grep -E "(^|/)tests?(\/|$)|_test\.go" >/dev/null; then
+            echo "Warning: untracked/ignored test files detected in workspace. Ensure test files are not packaged as artifacts."
+          fi
+
   integration-test:
     name: Integration Test (Traefik + whoami)
     runs-on: ubuntu-latest
