@@ -127,6 +127,28 @@ jobs:
           fi
           UPLOAD_URL=$(echo "$RELEASE_JSON" | jq -r .upload_url | sed -e 's/{?name,label}//')
           echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+
+      - name: Delete existing release assets (if any)
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.get_upload_url.outputs.release_id }}
+          ZIP_NAME: ${{ steps.create_zip.outputs.zip_name }}
+          CHECKSUM_NAME: ${{ steps.create_zip.outputs.checksum_name }}
+        run: |
+          set -eux
+          # List existing assets for the release and delete assets matching the names
+          ASSETS_JSON=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets")
+          for name in "$ZIP_NAME" "$CHECKSUM_NAME"; do
+            ASSET_ID=$(echo "$ASSETS_JSON" | jq -r --arg name "$name" '.[] | select(.name == $name) | .id') || true
+            if [ -n "$ASSET_ID" ] && [ "$ASSET_ID" != "null" ]; then
+              echo "Deleting existing asset $name (id=$ASSET_ID)"
+              curl -s -X DELETE -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${ASSET_ID}"
+            else
+              echo "No existing asset named $name"
+            fi
+          done
 
       - name: Upload plugin zip to release
         uses: actions/upload-release-asset@v1
