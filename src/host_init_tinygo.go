@@ -30,6 +30,9 @@ func init() {
     for _, v := range cfg.AllowedValues {
         set[v] = struct{}{}
     }
-    mw := &TokenMiddleware{param: cfg.ParamName, allow: set, deny: deny}
+    mw := &TokenMiddleware{param: cfg.ParamName, allow: set, deny: deny, dev: bool(cfg.DevMode)}
+    if cfg.DevMode {
+        handler.Host.Log(api.LogLevelInfo, "dev mode enabled")
+    }
     handler.HandleRequestFn = mw.handleRequest
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -14,6 +13,8 @@ type Config struct {
 	AllowedValues []string `json:"allowedValues"`
 	// DenyStatus accepts either a number or a quoted string ("401") in JSON.
 	DenyStatus    HTTPStatus `json:"denyStatus,omitempty"` // default 401
+	// DevMode enables extra logging and decision points for debugging in clusters.
+	DevMode       DevFlag    `json:"devMode,omitempty"`
 }
 
 // HTTPStatus accepts either a JSON number (401) or JSON string ("401").
@@ -39,10 +40,36 @@ func (s *HTTPStatus) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// DevFlag accepts only a JSON boolean true to enable dev mode. Any other value
+// (string, number, null, etc.) is treated as false and does not return an error.
+type DevFlag bool
+
+func (d *DevFlag) UnmarshalJSON(b []byte) error {
+	var bv bool
+	if err := json.Unmarshal(b, &bv); err == nil {
+		*d = DevFlag(bv)
+		return nil
+	}
+	// Some hosts (e.g. Traefik) may serialize booleans as strings ("true").
+	// Accept the string value "true" (case-insensitive) as enabling devMode.
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		if strings.EqualFold(s, "true") {
+			*d = DevFlag(true)
+			return nil
+		}
+	}
+
+	// For any other non-boolean value, default to false and do not error.
+	*d = DevFlag(false)
+	return nil
+}
+
 type TokenMiddleware struct {
 	param string
 	allow map[string]struct{}
 	deny  int
+	dev   bool
 }
 
 // TinyGo/WASI requires a main entrypoint even if unused by http-wasm.
@@ -52,28 +79,44 @@ func main() {}
 
 func (m *TokenMiddleware) handleRequest(req api.Request, resp api.Response) (next bool, reqCtx uint32) {
 	uri := req.GetURI() // e.g. "/path?Token=abc"
-	i := strings.IndexByte(uri, '?')
-	if i < 0 {
-		return m.unauth(resp, "missing query string")
+	ok, reason := tokenAllowed(uri, m.param, m.allow, m.dev)
+	if ok {
+		return true, 0
 	}
-	qs := uri[i+1:]
-	vals := parseQuery(qs, m.param)
-	if len(vals) == 0 {
-		return m.unauth(resp, fmt.Sprintf("missing %s", m.param))
+	if m.dev {
+		Logf(api.LogLevelInfo, "handleRequest: denying request uri=%s reason=%s", uri, reason)
 	}
-	for _, v := range vals {
-		if _, ok := m.allow[v]; ok {
-			return true, 0 // let Traefik continue
-		}
-	}
-	return m.unauth(resp, "token not allowed")
+	return m.unauth(resp, reason)
 }
 
-func (m *TokenMiddleware) unauth(resp api.Response, msg string) (bool, uint32) {
+func (m *TokenMiddleware) unauth(resp api.Response, reason string) (bool, uint32) {
+	// Always set the status code. If dev mode is enabled, emit a body and
+	// a content-type header to help debugging. In production (dev==false)
+	// we avoid any headers or body so the response is a minimal 401.
 	resp.SetStatusCode(uint32(m.deny))
-	resp.Headers().Set("Content-Type", "text/plain; charset=utf-8")
-	resp.Body().WriteString("Unauthorized: " + msg + "\n")
+	if m.dev {
+		resp.Headers().Set("Content-Type", "text/plain; charset=utf-8")
+		resp.Body().WriteString(unauthBody(m.dev, reason))
+	}
 	return false, 0
+}
+
+// unauthBody returns the response body when denying a request.
+// When dev is enabled we return a friendly message; in non-dev mode return empty.
+func unauthBody(dev bool, reason string) string {
+	if !dev {
+		return ""
+	}
+	switch reason {
+	case "no-query":
+		return "no query parameter is"
+	case "param-missing":
+		return "invalid query parameter"
+	case "no-match":
+		return "invalid token"
+	default:
+		return "invalid parameter value"
+	}
 }
 
 // parseQuery extracts all values for key from "a=1&b=2&b=3"
@@ -100,22 +143,34 @@ func parseQuery(qs, key string) []string {
 // tokenAllowed determines whether the request URI contains an allowed token
 // for the given param name. It is extracted to a helper so the decision logic
 // can be unit tested without needing the http-wasm host types.
-func tokenAllowed(uri, param string, allow map[string]struct{}) bool {
+func tokenAllowed(uri, param string, allow map[string]struct{}, dev bool) (bool, string) {
 	i := strings.IndexByte(uri, '?')
 	if i < 0 {
-		return false
+		if dev {
+			Logf(api.LogLevelDebug, "tokenAllowed: no query string for uri=%s", uri)
+		}
+		return false, "no-query"
 	}
 	qs := uri[i+1:]
 	vals := parseQuery(qs, param)
 	if len(vals) == 0 {
-		return false
+		if dev {
+			Logf(api.LogLevelDebug, "tokenAllowed: no values for param=%s in uri=%s", param, uri)
+		}
+		return false, "param-missing"
 	}
 	for _, v := range vals {
 		if _, ok := allow[v]; ok {
-			return true
+			if dev {
+				Logf(api.LogLevelDebug, "tokenAllowed: allowed value=%s for param=%s", v, param)
+			}
+			return true, ""
 		}
 	}
-	return false
+	if dev {
+		Logf(api.LogLevelDebug, "tokenAllowed: no matching allowed values for uri=%s", uri)
+	}
+	return false, "no-match"
 }
 
 func urlDecode(s string) string {

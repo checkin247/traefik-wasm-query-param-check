@@ -10,7 +10,19 @@ Validates a query parameter against an allow-list.
 
 Proceed if query parameter is set and its value is in the list of allowed values.
 
-## Config (dynamic)
+## Configuration
+
+### Plugin configuration
+
+```yaml
+experimental:
+  plugins:
+    queryToken:
+      moduleName: github.com/checkin247/traefik-wasm-query-param-check
+      version: v1.0.2
+```
+
+## Middleware configuration
 ```yaml
 http:
   middlewares:
@@ -28,22 +40,25 @@ http:
 ### Create or update go.sum
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work/src golang:1.22-bookworm /usr/local/go/bin/go mod tidy
+# On PowerShell use ${PWD.Path} (or use the included helper script below)
+docker run --rm -v "${PWD.Path}":/work -w /work/src golang:1.22-bookworm /usr/local/go/bin/go mod tidy
 ```
 
 ### build with docker
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work/src tinygo/tinygo:0.34.0 tinygo build -o /work/plugin.wasm -scheduler=none --no-debug -target=wasi .
-```
+# Prefer the cross-platform helper script which will use a local tinygo when
+# available or fall back to a Docker-based tinygo. The script will also try to
+# run `wasm-opt` (Binaryen) if present to optimize the generated wasm. You can
+# override the optimizer path with the WASMOPT environment variable.
 
-### move to build dir
+# PowerShell
+./scripts/build-wasm.ps1
 
-```bash
-MODULE_PATH=github.com/checkin247/traefik-wasm-query-param-check
-mkdir -p plugins-local/src/$MODULE_PATH
-cp plugin.wasm .traefik.yml plugins-local/src/$MODULE_PATH/
+# POSIX (bash)
+./scripts/build-wasm.sh
 ```
+this will also move it to plugins directory used by docker-compose
 
 ## Test locally
 
@@ -80,6 +95,37 @@ Pop-Location
 
 Use the `LOCAL_TEST_BASE` environment variable to point the integration test at a
 different base URL (default: `http://localhost:80/`).
+
+## Debugging / Dev mode
+
+When troubleshooting the plugin in a cluster or local Traefik instance you can
+enable a small set of runtime debug logs and decision points by setting
+`devMode: true` in the plugin config. This enables extra logging which helps
+observe why requests are allowed or denied.
+
+Example dynamic configuration (Traefik):
+
+```yaml
+http:
+  middlewares:
+    token-check:
+      plugin:
+        qptoken:
+          paramName: "Token"
+          allowedValues: ["my-secret"]
+          denyStatus: 401
+          devMode: false
+```
+
+Notes:
+- When the plugin is built with TinyGo and run in the http-wasm host, logs are
+  forwarded to the host via `handler.Host.Log(...)` and will appear in Traefik
+  or the host runtime logs depending on your deployment.
+- Log levels use the host's `api.LogLevel` values; the plugin emits debug/info
+  messages for decision points when `devMode` is enabled.
+- Keep `devMode` off in production unless you need diagnostics; logs may contain
+  request data that you should avoid exposing in production environments.
+
 
 
 ## License

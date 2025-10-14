@@ -19,6 +19,31 @@ func parseAndDefault(t *testing.T, input string) (int, error) {
     return deny, nil
 }
 
+func TestDevFlagUnmarshal(t *testing.T) {
+    cases := []struct{
+        name string
+        json string
+        want bool
+    }{
+        {"boolean true", `true`, true},
+        {"boolean false", `false`, false},
+        {"string true", `"true"`, true},
+        {"number 1", `1`, false},
+        {"null", `null`, false},
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            var d DevFlag
+            if err := json.Unmarshal([]byte(tc.json), &d); err != nil {
+                t.Fatalf("Unmarshal error: %v", err)
+            }
+            if bool(d) != tc.want {
+                t.Fatalf("got=%v want=%v", bool(d), tc.want)
+            }
+        })
+    }
+}
+
 func TestConfigDenyStatus(t *testing.T) {
     tests := []struct{
         name string
