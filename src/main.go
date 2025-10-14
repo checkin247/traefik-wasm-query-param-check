@@ -96,7 +96,11 @@ func (m *TokenMiddleware) unauth(resp api.Response, reason string) (bool, uint32
 	resp.SetStatusCode(uint32(m.deny))
 	if m.dev {
 		resp.Headers().Set("Content-Type", "text/plain; charset=utf-8")
-		resp.Body().WriteString(unauthBody(m.dev, reason))
+		// Append a newline to separate the plugin's debug body from any
+		// host/sidecar messages that may be appended by the runtime after
+		// the module closes (e.g. "module closed with exit_code(0)"). This
+		// keeps the plugin message readable in the browser.
+		resp.Body().WriteString(unauthBody(m.dev, reason) + "\n")
 	}
 	return false, 0
 }
