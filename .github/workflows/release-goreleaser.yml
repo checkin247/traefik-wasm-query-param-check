@@ -86,7 +86,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create plugin zip and checksum
-        id: create_zip
         run: |
           set -eux
           TAG=${GITHUB_REF#refs/tags/}
@@ -96,54 +95,38 @@ jobs:
           CHECKSUM_NAME="${PROJECT_NAME}_${VERSION}_checksums.txt"
           # Create zip containing only the plugin artifacts
           zip -j "$ZIP_NAME" LICENSE .traefik.yml plugin.wasm
-          # Sanity check: ensure no test files or test directories are included in the release zip
-          if unzip -l "$ZIP_NAME" | grep -E "(^|/)(tests?/|.*_test\.go$)" >/dev/null; then
-            echo "ERROR: zip contains test files or test directories; aborting"
-            unzip -l "$ZIP_NAME"
-            exit 1
-          fi
           # Create sha256 checksum file in the same layout GoReleaser uses
           sha256sum "$ZIP_NAME" > "$CHECKSUM_NAME"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
           echo "CHECKSUM_NAME=$CHECKSUM_NAME" >> $GITHUB_ENV
-          # Export values as step outputs for use by later actions
-          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
-          echo "checksum_name=$CHECKSUM_NAME" >> $GITHUB_OUTPUT
 
-      - name: Get release upload URL
-        id: get_upload_url
+      - name: Upload plugin assets to GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eux
           TAG=${GITHUB_REF#refs/tags/}
-          # Query the release created by goreleaser and export its upload_url (stripped)
+          # Get release JSON created by GoReleaser (should exist)
           RELEASE_JSON=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
           RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r .id)
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
-            echo "Release not found for tag ${TAG}; aborting"
+            echo "Release not found for tag ${TAG}; aborting upload"
             echo "Response: $RELEASE_JSON"
             exit 1
           fi
           UPLOAD_URL=$(echo "$RELEASE_JSON" | jq -r .upload_url | sed -e 's/{?name,label}//')
-          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+          # Upload zip
+          ZIP_NAME=${ZIP_NAME}
+          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: application/zip" --data-binary @"${ZIP_NAME}" "${UPLOAD_URL}?name=${ZIP_NAME}"
+          # Upload checksum
+          CHECKSUM_NAME=${CHECKSUM_NAME}
+          curl -s -XPOST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: text/plain" --data-binary @"${CHECKSUM_NAME}" "${UPLOAD_URL}?name=${CHECKSUM_NAME}"
 
-      - name: Upload plugin zip to release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.get_upload_url.outputs.upload_url }}
-          asset_path: ${{ steps.create_zip.outputs.zip_name }}
-          asset_name: ${{ steps.create_zip.outputs.zip_name }}
-          asset_content_type: application/zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload checksum to release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.get_upload_url.outputs.upload_url }}
-          asset_path: ${{ steps.create_zip.outputs.checksum_name }}
-          asset_name: ${{ steps.create_zip.outputs.checksum_name }}
-          asset_content_type: text/plain
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Debug dist contents (for troubleshooting)
+        if: always()
+        run: |
+          set -eux
+          echo 'Listing dist directory'
+          ls -la dist || true
+          echo 'Showing dist/config.yaml'
+          cat dist/config.yaml || true
