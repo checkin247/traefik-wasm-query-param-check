@@ -150,6 +150,28 @@ jobs:
             fi
           done
 
+      - name: Debug upload variables
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ steps.get_upload_url.outputs.upload_url }}
+          ZIP_NAME: ${{ steps.create_zip.outputs.zip_name }}
+          CHECKSUM_NAME: ${{ steps.create_zip.outputs.checksum_name }}
+          RELEASE_ID: ${{ steps.get_upload_url.outputs.release_id }}
+        run: |
+          set -eux
+          echo "UPLOAD_URL=${UPLOAD_URL}"
+          echo "ZIP_NAME='${ZIP_NAME}'"
+          echo "CHECKSUM_NAME='${CHECKSUM_NAME}'"
+          echo "Listing files in workspace:"
+          ls -la
+          echo "Check zip file exists:"; [ -f "${ZIP_NAME}" ] && echo "ZIP present" || echo "ZIP missing"
+          echo "Print zip name bytes (hex) to detect hidden characters:" 
+          printf '%s' "${ZIP_NAME}" | od -An -t x1
+          echo "Print checksum name bytes (hex):"
+          printf '%s' "${CHECKSUM_NAME}" | od -An -t x1
+          echo "Release assets JSON:" 
+          curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" | jq .
+
       - name: Upload plugin zip to release
         uses: actions/upload-release-asset@v1
         with:
